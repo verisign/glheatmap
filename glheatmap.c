@@ -195,17 +195,17 @@ data_ptr(unsigned int i)
     pthread_mutex_lock(&mutexData);
     A = DATA + dq.a;
     if (0 == *A)
-	*A = calloc(256, sizeof(A));
+	*A = calloc(256, sizeof(**A));
     if (0 == *A)
 	return 0;
     B = (*A) + dq.b;
     if (0 == *B)
-	*B = calloc(256, sizeof(B));
+	*B = calloc(256, sizeof(**B));
     if (0 == *B)
 	return 0;
     C = (*B) + dq.c;
     if (0 == *C)
-	*C = calloc(256, sizeof(C));
+	*C = calloc(256, sizeof(**C));
     if (0 == *C)
 	return 0;
     D = (*C) + dq.d;
@@ -287,7 +287,7 @@ read_input_stdin(void)
 	    errx(1, "bad input parsing IP on line %d: %s", line, t);
 
 	//if (debug)
-	    //fprintf(stderr, "%s => %u => (%d,%d)\n", t, i, x, y);
+	    //fprintf(stderr, "%s => %u =>\n", t, i);
 
 	data_inc(i);
 	line++;
