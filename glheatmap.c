@@ -226,7 +226,7 @@ data_inc(unsigned int i)
 void
 data_set(unsigned int i, unsigned int v)
 {
-    DATA_TYPE *D = data_ptr(i);
+    DATA_TYPE *D = data_ptr((i & MASK_KEEP) | MASK_SET);
     if (0 == D)
 	return;
     if (v > 255)
@@ -276,7 +276,6 @@ read_input_stdin(void)
 	 * equivalent.
 	 */
 	t = strtok(strtok_arg, WHITESPACE);
-	strtok_arg = NULL;
 	if (NULL == t)
 	    continue;
 	if (strspn(t, "0123456789") == strlen(t))
@@ -289,7 +288,12 @@ read_input_stdin(void)
 	//if (debug)
 	    //fprintf(stderr, "%s => %u =>\n", t, i);
 
-	data_inc(i);
+	/* check for color value */
+	t = strtok(strtok_arg, WHITESPACE);
+	if (NULL == t)
+		data_inc(i);
+	else
+		data_set(i, strtoul(t, NULL, 10));
 	line++;
 	if (FILE_TIME >= NEXT_QPS_TIME) {
 	    QPS = (PNQUERY - NQUERY) / (LAST_QPS_TIME - FILE_TIME);
