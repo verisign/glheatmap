@@ -31,6 +31,7 @@
 #include <netinet/in.h>
 #include <assert.h>
 #include <time.h>
+#include <sys/time.h>
 #include <err.h>
 #include <ctype.h>
 #include <getopt.h>
@@ -116,10 +117,12 @@ static unsigned int NQUERY = 0;
 static unsigned int NPIX = 0;
 static double ZOOM_BASE;
 static GLfloat ZOOM_SCALE = 1.0;
-static unsigned int QPS = 0;
+static double QPS = 0;
 static bool READING = 0;
 static int STREAM = -1;         /* network socket */
 static double FILE_TIME;
+static double FILE_TIME_OFFSET = 0;	/* difference between file time and wall clock */
+static double PLAYBACK_SPEED = 4.0;
 static double DRAW_TIME = 0.0;	/* how long drawData() takes */
 static GLfloat POINT_SIZE = 0.0;
 static GLfloat POINT_SCALE = 1.0;
@@ -139,7 +142,6 @@ static dq CENTER_IP;
 static bbox WINDOW;
 static double HALF_LIFE = 10.0; /* seconds */
 static unsigned int FADE_START = 0;
-static unsigned int PAUSE_TIME = 0;
 
 
 static pthread_t threadReadData;
@@ -157,7 +159,7 @@ extern void set_bits_per_pixel(int);
 /*
  * In-file Prototypes
  */
-void decayData();
+void decayData(double);
 void decayByHalf();
 
 #if DATA_DOUBLES
@@ -237,7 +239,7 @@ data_set(unsigned int i, unsigned int v)
 void
 read_input_stdin(void)
 {
-    static double NEXT_QPS_TIME = 0.0;
+    static double NEXT_PAUSE_CHECK = 0.0;
     static double LAST_QPS_TIME = 0.0;
     static unsigned int PNQUERY;
     char buf[512];
@@ -295,13 +297,26 @@ read_input_stdin(void)
 	else
 		data_set(i, strtoul(t, NULL, 10));
 	line++;
-	if (FILE_TIME >= NEXT_QPS_TIME) {
-	    QPS = (PNQUERY - NQUERY) / (LAST_QPS_TIME - FILE_TIME);
+	if (FILE_TIME >= NEXT_PAUSE_CHECK) {
+	    double now;
+	    double delta;
+	    struct timeval tv;
+	    gettimeofday(&tv, 0);
+	    now = tv.tv_sec + 0.000001 * tv.tv_usec;
+	    if (0 == FILE_TIME_OFFSET) {
+		FILE_TIME_OFFSET = now - (FILE_TIME / PLAYBACK_SPEED);
+		delta = 0;
+	    } else {
+	        delta = (FILE_TIME / PLAYBACK_SPEED) + FILE_TIME_OFFSET - now;
+	    }
+	    QPS = (double) (NQUERY - PNQUERY) / (FILE_TIME - LAST_QPS_TIME);
 	    LAST_QPS_TIME = FILE_TIME;
-	    NEXT_QPS_TIME = FILE_TIME + 1.0;
+	    NEXT_PAUSE_CHECK = FILE_TIME + 0.01;
 	    PNQUERY = NQUERY;
-	    if (PAUSE_TIME)
-		usleep(PAUSE_TIME);
+	    if (delta > 0) {
+		unsigned int sleep_usecs = 1000000 * delta;
+		usleep(sleep_usecs);
+	    }
 	}
     }
 }
@@ -690,7 +705,7 @@ drawText(void)
     drawStr(5, n++ * 15, "File time      %s", tbuf);
     drawStr(5, n++ * 15, "NQUERY         %12u", NQUERY);
     drawStr(5, n++ * 15, "NPIX           %12u", NPIX);
-    drawStr(5, n++ * 15, "QPS            %12u", QPS);
+    drawStr(5, n++ * 15, "QPS            %12.2f", QPS);
     drawStr(5, n++ * 15, "DRAW TIME      %12.3f", DRAW_TIME);
     drawStr(5, n++ * 15, "POINT SCALE    %12.3f", POINT_SCALE);
     drawStr(5, n++ * 15, "POINT SIZE     %12.3f", POINT_SIZE);
@@ -698,7 +713,7 @@ drawText(void)
     drawStr(5, n++ * 15, "%s", "Controls");
     drawStr(5, n++ * 15, "[-/=] Scale           %7.3f/%d", ZOOM_SCALE, ZOOM_INDEX);
     drawStr(5, n++ * 15, "[d/D] HALF LIFE       %7.2fs", HALF_LIFE);
-    drawStr(5, n++ * 15, "[s/S] PAUSE TIME      %7u", PAUSE_TIME);
+    drawStr(5, n++ * 15, "[s/S] PLAYBACK SPEED  %7.0fx", PLAYBACK_SPEED);
     n++;
     drawStr(5, n++ * 15, "%s", "Position");
     drawStr(5, n++ * 15, "Translate      %f, %f", TRANS_X, TRANS_Y);
@@ -901,6 +916,8 @@ cb_Key(unsigned char c, int x, int y)
 	break;
     case ' ':
 	toggle(&READING);
+	if (!READING)
+	    FILE_TIME_OFFSET = 0;
 	break;
     case 'r':
 	TRANS_X = TRANS_Y = 0.0;
@@ -927,13 +944,15 @@ cb_Key(unsigned char c, int x, int y)
 	HALF_LIFE += 1.0;
 	break;
     case 's':
-	if (PAUSE_TIME)
-	    PAUSE_TIME <<= 1;
+	FILE_TIME_OFFSET = 0;
+	if (PLAYBACK_SPEED)
+	    PLAYBACK_SPEED /= 2.0;
 	else
-	    PAUSE_TIME = 1;
+	    PLAYBACK_SPEED = 1.0;
 	break;
     case 'S':
-	PAUSE_TIME >>= 1;
+	FILE_TIME_OFFSET = 0;
+	PLAYBACK_SPEED *= 2.0;
 	break;
     case 'q':
 	exit(0);
@@ -953,17 +972,16 @@ cb_Idle(void)
     } else {
 	usleep(10000);
     }
-    if (HALF_LIFE > 0.0 && FILE_TIME - FILE_TIME_LAST_DECAY >= 1.0) {
-	decayData();
+    if (HALF_LIFE > 0.0 && FILE_TIME - FILE_TIME_LAST_DECAY >= 0.01) {
+	decayData(pow(2.0, -1.0 * (FILE_TIME - FILE_TIME_LAST_DECAY) / HALF_LIFE ));
 	FILE_TIME_LAST_DECAY = FILE_TIME;
     }
 }
 
 void
-decayData()
+decayData(double decay)
 {
     dq dq;
-    double decay = pow(2.0, -1.0 / HALF_LIFE);
     for (dq.a = 0; dq.a < 256; dq.a++) {
 	if (!DATA[dq.a])
 	    continue;
@@ -1055,10 +1073,13 @@ main(int argc, char *argv[])
 
     memset(OPT_BREAKPOINTS, 0, sizeof(OPT_BREAKPOINTS));
 
-    while ((ch = getopt(argc, argv, "ap:s:uFm:b:")) != -1) {
+    while ((ch = getopt(argc, argv, "ad:p:s:uFm:b:")) != -1) {
 	switch (ch) {
 	case 'a':
 	    OPT_AUTO_POINT_SIZE = 1;
+	    break;
+	case 'd':
+	    HALF_LIFE = strtod(optarg, 0);
 	    break;
 	case 'p':
 	    POINT_SCALE = strtod(optarg, 0);
@@ -1085,7 +1106,7 @@ main(int argc, char *argv[])
 		MASK_SET = strtoul(t, 0, 0);
 	    break;
 	default:
-	    fprintf(stderr, "usage: %s [-a] [-p pointscale] [-b breakpoint] [-s stream] [-u] [-F] [-m keep/set]\n", prog);
+	    fprintf(stderr, "usage: %s [-a] [-d half-life] [-p pointscale] [-b breakpoint] [-s stream] [-u] [-F] [-m keep/set]\n", prog);
 	    exit(1);
 	    break;
 	}
