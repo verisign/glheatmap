@@ -271,7 +271,7 @@ read_input_stdin(void)
 	    continue;
 	FILE_TIME = strtod(t, &e);
 	if (e == t)
-	    errx(1, "bad input parsing time on line %d: %s", line, t);
+	    warnx("bad input parsing time on line %d: %s", line, t);
 
 	/*
 	 * next field is an IP address.  We also accept its integer notation
@@ -285,7 +285,7 @@ read_input_stdin(void)
 	else if (1 == inet_pton(AF_INET, t, &i))
 	    i = ntohl(i);
 	else
-	    errx(1, "bad input parsing IP on line %d: %s", line, t);
+	    warnx("bad input parsing IP on line %d: %s", line, t);
 
 	//if (debug)
 	    //fprintf(stderr, "%s => %u =>\n", t, i);
@@ -381,7 +381,7 @@ read_input_untimed(void)
 	else if (1 == inet_pton(AF_INET, t, &i))
 	    i = ntohl(i);
 	else
-	    errx(1, "bad input parsing IP on line %d: %s", line, t);
+	    warnx("bad input parsing IP on line %d: %s", line, t);
 
 	/*
 	 * next (optional) field is a value
