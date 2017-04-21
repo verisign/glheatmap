@@ -1073,7 +1073,7 @@ main(int argc, char *argv[])
 
     memset(OPT_BREAKPOINTS, 0, sizeof(OPT_BREAKPOINTS));
 
-    while ((ch = getopt(argc, argv, "ad:p:s:uFm:b:")) != -1) {
+    while ((ch = getopt(argc, argv, "ad:p:s:uFm:b:X:Y:Z:")) != -1) {
 	switch (ch) {
 	case 'a':
 	    OPT_AUTO_POINT_SIZE = 1;
@@ -1104,6 +1104,16 @@ main(int argc, char *argv[])
 	    MASK_KEEP = strtoul(optarg, 0, 0);
 	    if ((t = strtok(NULL, "")))
 		MASK_SET = strtoul(t, 0, 0);
+	    break;
+	case 'X':
+	    TRANS_X = strtod(optarg, 0);
+	    break;
+	case 'Y':
+	    TRANS_Y = strtod(optarg, 0);
+	    break;
+	case 'Z':
+	    ZOOM_INDEX = strtoul(optarg, 0, 0);
+	    ZOOM_SCALE = zoom_scale();
 	    break;
 	default:
 	    fprintf(stderr, "usage: %s [-a] [-d half-life] [-p pointscale] [-b breakpoint] [-s stream] [-u] [-F] [-m keep/set]\n", prog);
