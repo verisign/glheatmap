@@ -557,7 +557,7 @@ drawData()
 			fprintf(stderr, "failed to convert ip %u.%u.%u.%u to X,Y\n", dq.a, dq.b, dq.c, dq.d);
 			continue;
 		    }
-		    double hue = 240.0 * (255.0 - v) / 255.0;
+		    double hue = 240.0 * (256.0 - v) / 256.0;
 		    HUE_TO_RGB(hue, R, G, B);
 		    if (R0 != R || G0 != G || B0 != B) {
 			glEnd();
