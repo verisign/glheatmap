@@ -311,7 +311,7 @@ read_input_stdin(void)
 	    }
 	    QPS = (double) (NQUERY - PNQUERY) / (FILE_TIME - LAST_QPS_TIME);
 	    LAST_QPS_TIME = FILE_TIME;
-	    NEXT_PAUSE_CHECK = FILE_TIME + 0.01;
+	    NEXT_PAUSE_CHECK = FILE_TIME + 0.001;
 	    PNQUERY = NQUERY;
 	    if (delta > 0) {
 		unsigned int sleep_usecs = 1000000 * delta;
