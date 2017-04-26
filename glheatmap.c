@@ -713,7 +713,7 @@ drawText(void)
     drawStr(5, n++ * 15, "%s", "Controls");
     drawStr(5, n++ * 15, "[-/=] Scale           %7.3f/%d", ZOOM_SCALE, ZOOM_INDEX);
     drawStr(5, n++ * 15, "[d/D] HALF LIFE       %7.2fs", HALF_LIFE);
-    drawStr(5, n++ * 15, "[s/S] PLAYBACK SPEED  %7.0fx", PLAYBACK_SPEED);
+    drawStr(5, n++ * 15, "[s/S] PLAYBACK SPEED  %7.3fx", PLAYBACK_SPEED);
     n++;
     drawStr(5, n++ * 15, "%s", "Position");
     drawStr(5, n++ * 15, "Translate      %f, %f", TRANS_X, TRANS_Y);
