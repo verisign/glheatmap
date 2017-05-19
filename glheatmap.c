@@ -314,6 +314,8 @@ read_input_stdin(void)
 	    NEXT_PAUSE_CHECK = FILE_TIME + 0.001;
 	    PNQUERY = NQUERY;
 	    if (delta > 0) {
+		if (delta > 1.0)
+			delta = 1.0;
 		unsigned int sleep_usecs = 1000000 * delta;
 		usleep(sleep_usecs);
 	    }
